@@ -31,8 +31,7 @@ class OFPHandler(app_manager.RyuApp):
    	# thread para monitorar trafego
         self.monitor_thread = hub.spawn(self._monitor)
     
-    "Garantir que switches conectados sejam monitorados" 
-    # acho que nao precisa, eh pra rede dinamica
+    #Garantir que switches conectados sejam monitorados
     @set_ev_cls(ofp_event.EventOFPStateChange, [MAIN_DISPATCHER, DEAD_DISPATCHER])
     def _state_change_handler(self, ev):
         datapath = ev.datapath
@@ -45,14 +44,14 @@ class OFPHandler(app_manager.RyuApp):
                 self.logger.debug('unregister datapath: %016x', datapath.id)
                 del self.datapaths[datapath.id]
     
-    "Requisita dados de trafego de todos os switches"	
+    #Requisita dados de trafego de todos os switches
     def _monitor(self):
         while True:
             for dp in self.datapaths.values():
                 self._request_stats(dp)
             hub.sleep(10)
     
-    "Envia mensagem de requisicao de status para determinado switch"
+    #Envia mensagem de requisicao de status para determinado switch
     def _request_stats(self, datapath):
         self.logger.debug('send stats request: %016x', datapath.id)
         ofproto = datapath.ofproto
@@ -66,7 +65,7 @@ class OFPHandler(app_manager.RyuApp):
         req = parser.OFPPortStatsRequest(datapath, 0, ofproto.OFPP_ANY)
         datapath.send_msg(req)
     
-    "Recebe respostas das requisocoes de flow stats"
+    #Recebe respostas das requisocoes de flow stats
     @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
     def _flow_stats_reply_handler(self, ev):
         body = ev.msg.body
@@ -86,7 +85,7 @@ class OFPHandler(app_manager.RyuApp):
                              stat.instructions[0].actions[0].port,
                              stat.packet_count, stat.byte_count)
 
-    "Recebe respostas das requisocoes de port stats"
+    #Recebe respostas das requisocoes de port stats
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def _port_stats_reply_handler(self, ev):
         body = ev.msg.body
@@ -114,7 +113,7 @@ class OFPHandler(app_manager.RyuApp):
                                           ofproto.OFPCML_NO_BUFFER)]
         self.add_flow(datapath, 0, match, actions)
     
-    "Adiciona uma  entrada na tabela do switch"
+    #Adiciona uma  entrada na tabela do switch
     def add_flow(self, datapath, priority, match, actions):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
@@ -126,7 +125,7 @@ class OFPHandler(app_manager.RyuApp):
                                 match=match, instructions=inst)
         datapath.send_msg(mod)
 
-    "Evento de packet_in, switch envia essa mensagem para o controlador ao receber um pacote"
+    #Evento de packet_in, switch envia essa mensagem para o controlador ao receber um pacote
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
         msg = ev.msg
