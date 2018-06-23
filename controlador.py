@@ -18,7 +18,7 @@ from collections import defaultdict
 # switches da rede
 switches = []
 
-#m ymac[srcmac]->(switch, port)
+#mymac[srcmac]->(switch, port)
 mymac = {}
 
 # mapeia de um switch para outro
@@ -250,6 +250,8 @@ class OFPHandler(app_manager.RyuApp):
         datapath = msg.datapath
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
+        dpid = datapath.id
+		self.mac_to_port.setdefault(dpid, {})
 
         # extrai informacoes do pacote
         pkt = packet.Packet(msg.data)
@@ -259,7 +261,7 @@ class OFPHandler(app_manager.RyuApp):
 
         # porta pela qual switch recebeu o pacote
         in_port = msg.match['in_port']
-        
+
         if src not in mymac.keys():
             mymac[src] = (dpid,  in_port)            
 
