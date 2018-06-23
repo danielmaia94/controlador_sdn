@@ -251,7 +251,7 @@ class OFPHandler(app_manager.RyuApp):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
         dpid = datapath.id
-		self.mac_to_port.setdefault(dpid, {})
+        self.mac_to_port.setdefault(dpid, {})
 
         # extrai informacoes do pacote
         pkt = packet.Packet(msg.data)
