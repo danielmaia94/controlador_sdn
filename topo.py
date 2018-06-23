@@ -3,18 +3,19 @@
 from mininet.net import Mininet
 from mininet.node import Controller, RemoteController, OVSController
 from mininet.node import CPULimitedHost, Host, Node
-from mininet.node import OVSKernelSwitch, UserSwitch
+from mininet.node import OVSKernelSwitch, UserSwitch, OVSSwitch
 from mininet.node import IVSSwitch
 from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.link import TCLink, Intf
 from subprocess import call
+from functools import partial
 
 def MyTopo():
-
+    switch = partial( OVSSwitch, protocols='OpenFlow13' )
     net = Mininet( topo=None,
                    build=False,
-                   ipBase='10.0.0.0/24')
+                   ipBase='10.0.0.0/24',switch=switch)
 
     info( '*** Adding controller\n' )
     c1=net.addController(name='c1',
@@ -24,12 +25,12 @@ def MyTopo():
                       port=6633)
 
     info( '*** Add switches\n')
-    s1 = net.addSwitch('s1', cls=OVSKernelSwitch, dpid='1')
-    s2 = net.addSwitch('s2', cls=OVSKernelSwitch, dpid='2')
-    s3 = net.addSwitch('s3', cls=OVSKernelSwitch, dpid='3')
-    s4 = net.addSwitch('s4', cls=OVSKernelSwitch, dpid='4')
-    s5 = net.addSwitch('s5', cls=OVSKernelSwitch, dpid='5')
-    s6 = net.addSwitch('s6', cls=OVSKernelSwitch, dpid='6')
+    s1 = net.addSwitch('s1', cls=OVSKernelSwitch, protocols='OpenFlow13', dpid='1')
+    s2 = net.addSwitch('s2', cls=OVSKernelSwitch, protocols='OpenFlow13', dpid='2')
+    s3 = net.addSwitch('s3', cls=OVSKernelSwitch, protocols='OpenFlow13', dpid='3')
+    s4 = net.addSwitch('s4', cls=OVSKernelSwitch, protocols='OpenFlow13', dpid='4')
+    s5 = net.addSwitch('s5', cls=OVSKernelSwitch, protocols='OpenFlow13', dpid='5')
+    s6 = net.addSwitch('s6', cls=OVSKernelSwitch, protocols='OpenFlow13', dpid='6')
     
     info( '*** Add hosts\n')
     cdn = net.addHost('h1', cls=Host, ip='10.0.0.1/24', mac='00:00:00:00:00:01', defaultRoute=None)
