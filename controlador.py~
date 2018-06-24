@@ -52,6 +52,8 @@ class OFPHandler(app_manager.RyuApp):
         # thread para monitorar trafego
         self.monitor_thread = hub.spawn(self._monitor)
     
+	self.topology_api_app = self
+	
     #Requisita dados de trafego de todos os switches
     def _monitor(self):
         while True:
@@ -60,7 +62,7 @@ class OFPHandler(app_manager.RyuApp):
             hub.sleep(10)
 
     #Retorna minima distancia de um nodo
-    def minimum_distance(distance, Q):
+    def minimum_distance(self, distance, Q):
 	minimum = float('Inf')
 
         node = 0
@@ -88,7 +90,7 @@ class OFPHandler(app_manager.RyuApp):
         print "Q=", Q
 
         while len(Q) > 0:
-            u = minimum_distance(distance, Q)
+            u = self.minimum_distance(distance, Q)
             Q.remove(u)
 
             for p in switches:
@@ -260,7 +262,7 @@ class OFPHandler(app_manager.RyuApp):
     #Evento de packet_in, switch envia essa mensagem para o controlador ao receber um pacote
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
-
+	print switches
         #hub.sleep(2)
 
         msg = ev.msg
@@ -320,5 +322,21 @@ class OFPHandler(app_manager.RyuApp):
         # loga os dados do pacote
 	if dst != 'ff:ff:ff:ff:ff:ff':
 	    self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
-        #print "Sai Packet in"           
+        #print "Sai Packet in"     
+
+    @set_ev_cls(event.EventSwitchEnter)
+    def get_topology_data(self, ev):
+        global switches
+        switch_list = get_switch(self.topology_api_app, None)  
+        switches=[switch.dp.id for switch in switch_list]
+        self.datapath_list=[switch.dp for switch in switch_list]
+        #print "self.datapath_list=", self.datapath_list
+        print "switches=", switches
+        links_list = get_link(self.topology_api_app, None)
+        mylinks=[(link.src.dpid,link.dst.dpid,link.src.port_no,link.dst.port_no) for link in links_list]
+        for s1,s2,port1,port2 in mylinks:
+          adjacency[s1][s2]=port1
+          adjacency[s2][s1]=port2
+
+          #print s1,s2,port1,port2      
 
