@@ -285,16 +285,16 @@ class OFPHandler(app_manager.RyuApp):
         #    mymac[src] = (dpid,  in_port)            
         self.mac_to_port[dpid][src] = in_port
         
-        print self.mac_to_port
+        #print self.mac_to_port
         if dst in self.mac_to_port[dpid]:
             print "Pre Dijkstra"		
             p = self.get_path(src, dst, in_port, self.mac_to_port[dpid][dst]) 
             print "Post Dijkstra"
             out_port = p[0][2]
         else:
-            print "Floodando"
+            #print "Floodando"
             out_port = ofproto.OFPP_FLOOD
-        print "Out_port" + str(out_port)
+            #print "Out_port" + str(out_port)
 
         actions = [parser.OFPActionOutput(out_port)]
 
@@ -318,6 +318,7 @@ class OFPHandler(app_manager.RyuApp):
         datapath.send_msg(out)
 
         # loga os dados do pacote
-        self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)  
-        print "Sai Packet in"           
+	if dst != 'ff:ff:ff:ff:ff:ff':
+	    self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
+        #print "Sai Packet in"           
 
