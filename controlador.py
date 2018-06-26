@@ -15,7 +15,25 @@ from ryu.app.wsgi import ControllerBase
 from ryu.topology import event, switches
 from collections import defaultdict
 from operator import attrgetter
+from ryu.lib.packet.arp import arp
+from ryu.ofproto import ether
 import sys
+
+HOST_IPADDR1 = "10.0.0.1"
+HOST_IPADDR2 = "10.0.0.2"
+HOST_IPADDR3 = "10.0.0.3"
+HOST_IPADDR4 = "10.0.0.4"
+HOST_IPADDR6 = "10.0.0.6"
+HOST_MACADDR1 = "00:00:00:00:00:01"
+HOST_MACADDR2 = "00:00:00:00:00:02"
+HOST_MACADDR3 = "00:00:00:00:00:03"
+HOST_MACADDR4 = "00:00:00:00:00:04"
+HOST_MACADDR6 = "00:00:00:00:00:06"
+HOST_PORT1 = 3
+HOST_PORT2 = 3
+HOST_PORT3 = 3
+HOST_PORT4 = 3
+HOST_PORT6 = 4
 
 # switches da rede
 switches = [1,2,3,4]
@@ -320,6 +338,61 @@ class OFPHandler(app_manager.RyuApp):
                                 hard_timeout=0)
         datapath.send_msg(mod)
 
+    def receive_arp(self, datapath, packet, etherFrame, inPort):
+        arpPacket = packet.get_protocol(arp)
+
+        if arpPacket.opcode == 1:
+            arp_dstIp = arpPacket.dst_ip
+            self.reply_arp(datapath, etherFrame, arpPacket, arp_dstIp, inPort)
+        elif arpPacket.opcode == 2:
+            pass
+
+    def reply_arp(self, datapath, etherFrame, arpPacket, arp_dstIp, inPort):
+        dstIp = arpPacket.src_ip
+        srcIp = arpPacket.dst_ip
+        dstMac = etherFrame.src
+        if arp_dstIp == HOST_IPADDR1:
+            srcMac = HOST_MACADDR1
+            outPort = HOST_PORT1
+        elif arp_dstIp == HOST_IPADDR2:
+            srcMac = HOST_MACADDR2
+            outPort = HOST_PORT2
+        elif arp_dstIp == HOST_IPADDR3:
+            srcMac = HOST_MACADDR3
+            outPort = HOST_PORT3
+        elif arp_dstIp == HOST_IPADDR4:
+            srcMac = HOST_MACADDR4
+            outPort = HOST_PORT4
+        elif arp_dstIp == HOST_IPADDR6:
+            srcMac = HOST_MACADDR6
+            outPort = HOST_PORT6
+
+        self.send_arp(datapath, 2, srcMac, srcIp, dstMac, dstIp, outPort)
+
+    def send_arp(self, datapath, opcode, srcMac, srcIp, dstMac, dstIp, outPort):
+        if opcode == 1:
+            targetMac = "00:00:00:00:00:00"
+            targetIp = dstIp
+        elif opcode == 2:
+            targetMac = dstMac
+            targetIp = dstIp
+
+        e = ethernet.ethernet(dstMac, srcMac, ether.ETH_TYPE_ARP)
+        a = arp(1, 0x0800, 6, 4, opcode, srcMac, srcIp, targetMac, targetIp)
+        p = packet.Packet()
+        p.add_protocol(e)
+        p.add_protocol(a)
+        p.serialize()
+
+        actions = [datapath.ofproto_parser.OFPActionOutput(outPort, 0)]
+        out = datapath.ofproto_parser.OFPPacketOut(
+            datapath=datapath,
+            buffer_id=0xffffffff,
+            in_port=datapath.ofproto.OFPP_CONTROLLER,
+            actions=actions,
+            data=p.data)
+        datapath.send_msg(out)
+
     #Evento de packet_in, switch envia essa mensagem para o controlador ao receber um pacote
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
@@ -356,9 +429,11 @@ class OFPHandler(app_manager.RyuApp):
 
         if dst == 'ff:ff:ff:ff:ff:ff':
             print "Sou um FF.FF.FF..."
-
+	
         #if dst in self.mac_to_port[dpid]:
-        if dst != 'ff:ff:ff:ff:ff:ff':
+	if eth_pkt.ethertype == ether.ETH_TYPE_ARP:
+            self.receive_arp(datapath, pkt, eth_pkt, in_port)
+        elif dst != 'ff:ff:ff:ff:ff:ff':
             print "Port DST: ",self.host_port[dst][1]
             print "Pre Dijsktra"
             p = self.get_path(self.host_port[src][0], self.host_port[dst][0], self.host_port[src][1], self.host_port[dst][1])
