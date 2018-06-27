@@ -18,6 +18,9 @@ from operator import attrgetter
 from ryu.lib.packet.arp import arp
 from ryu.ofproto import ether
 import sys
+from ryu.lib.packet import ether_types
+from ryu.lib import dpid as dpid_lib
+from ryu.lib import ofctl_utils
 
 HOST_IPADDR1 = "10.0.0.1"
 HOST_IPADDR2 = "10.0.0.2"
@@ -230,17 +233,19 @@ class OFPHandler(app_manager.RyuApp):
         parser = datapath.ofproto_parser
 	
         # obtem dados de flow
-        req = parser.OFPFlowStatsRequest(datapath)
-        datapath.send_msg(req)
-	
+        #req = parser.OFPFlowStatsRequest(datapath)
+        #datapath.send_msg(req)
+    
         # obtem dados das portas
-        req = parser.OFPPortStatsRequest(datapath, 0, ofproto.OFPP_ANY)
+        req = parser.OFPPortDescStatsRequest(datapath, 0, ofproto.OFPP_ANY)
         datapath.send_msg(req)
     
     #Recebe respostas das requisicoes de flow stats
     @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
     def _flow_stats_reply_handler(self, ev):
         body = ev.msg.body
+        #for p in body:
+            #print p
         '''
         self.logger.info('datapath         '
                          'in-port  eth-dst           '
@@ -258,10 +263,32 @@ class OFPHandler(app_manager.RyuApp):
                              stat.packet_count, stat.byte_count)
         '''
     #Recebe respostas das requisicoes de port stats
+    @set_ev_cls(ofp_event.EventOFPPortDescStatsReply, MAIN_DISPATCHER)
+    def port_desc_stats_reply_handler(self, ev):
+        ports = []
+        print "Switch:", ev.msg.datapath.id
+        for p in ev.msg.body:
+
+            print "Port #:", p.port_no
+            print "Curr_speed:", p.curr_speed
+        
+            ports.append('port_no=%d hw_addr=%s name=%s config=0x%08x '
+                         'state=0x%08x curr=0x%08x advertised=0x%08x '
+                         'supported=0x%08x peer=0x%08x curr_speed=%d '
+                         'max_speed=%d' %
+                         (p.port_no, p.hw_addr,
+                          p.name, p.config,
+                          p.state, p.curr, p.advertised,
+                          p.supported, p.peer, p.curr_speed,
+                          p.max_speed))
+
+    '''
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def _port_stats_reply_handler(self, ev):
         body = ev.msg.body
-        '''
+        #for p in body:
+            #print p
+        
         self.logger.info('datapath         port     '
                          'rx-pkts  rx-bytes rx-error '
                          'tx-pkts  tx-bytes tx-error')
@@ -274,7 +301,8 @@ class OFPHandler(app_manager.RyuApp):
                              stat.rx_packets, stat.rx_bytes, stat.rx_errors,
                              stat.tx_packets, stat.tx_bytes, stat.tx_errors)
 
-        '''
+        
+    '''
     # @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     # def switch_features_handler(self, ev):
     #     datapath = ev.msg.datapath
@@ -350,10 +378,10 @@ class OFPHandler(app_manager.RyuApp):
         dstIp = arpPacket.src_ip
         srcIp = arpPacket.dst_ip
         dstMac = etherFrame.src
-        print "SRC IP",arpPacket.src_ip
-        print "DST IP",arpPacket.dst_ip
-        print "SRC MAC",etherFrame.src
-        print "DST IP parametro",arp_dstIp
+        #print "SRC IP",arpPacket.src_ip
+        #print "DST IP",arpPacket.dst_ip
+        #print "SRC MAC",etherFrame.src
+        #print "DST IP parametro",arp_dstIp
         dpid = datapath.id
         # Outport depende em que switch estamos e de quem fez a pergunta 
         if arp_dstIp == HOST_IPADDR1:
@@ -379,8 +407,8 @@ class OFPHandler(app_manager.RyuApp):
         if dpid == 3 and arpPacket.src_ip == "10.0.0.3" :
             outPort = 3
 
-        print srcMac
-        print outPort
+        #print srcMac
+        #print outPort
         self.send_arp(datapath, 2, srcMac, srcIp, dstMac, dstIp, outPort)
 
     def send_arp(self, datapath, opcode, srcMac, srcIp, dstMac, dstIp, outPort):
@@ -440,12 +468,10 @@ class OFPHandler(app_manager.RyuApp):
         print "MAC SRC:" , src
         print "MAC DST:" , dst
 
-
-        if dst == 'ff:ff:ff:ff:ff:ff':
-            print "Sou um FF.FF.FF..."
-	
+        #if dst == 'ff:ff:ff:ff:ff:ff':
+            #print "Sou um FF.FF.FF..."
         #if dst in self.mac_to_port[dpid]:
-	if eth_pkt.ethertype == ether.ETH_TYPE_ARP:
+        if eth_pkt.ethertype == ether.ETH_TYPE_ARP:
             print "Solucionando ARP"
             self.receive_arp(datapath, pkt, eth_pkt, in_port)
         elif dst != 'ff:ff:ff:ff:ff:ff':
@@ -453,7 +479,7 @@ class OFPHandler(app_manager.RyuApp):
             print "Pre Dijsktra"
             p = self.get_path(self.host_port[src][0], self.host_port[dst][0], self.host_port[src][1], self.host_port[dst][1])
             print "Post Dijsktra"
-            print p
+            #print p
             self.install_path(p, ev, src, dst) # Instala todas as regras em todos os sw
             out_port = p[0][2]
         else:
@@ -483,7 +509,7 @@ class OFPHandler(app_manager.RyuApp):
         # loga os dados do pacote
 	if dst != 'ff:ff:ff:ff:ff:ff':
 	    self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
-    print "Sai Packet in"     
+        print "Sai Packet in"     
 
 #------------------------------------------------------------------------------
     
