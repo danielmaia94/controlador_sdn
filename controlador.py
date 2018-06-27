@@ -46,7 +46,7 @@ mymac = {}
 
 # mapeia de um switch para outro
 adjacency = defaultdict(lambda:defaultdict(lambda:None))
-
+port_speed = defaultdict(lambda:defaultdict(lambda:None))
 class OFPHandler(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]    
 	
@@ -54,20 +54,20 @@ class OFPHandler(app_manager.RyuApp):
         super(OFPHandler, self).__init__(*args, **kwargs)
 
         # registra velocidade das portas
-        self.port_speed = defaultdict(lambda:defaultdict(lambda:None))
-        self.port_speed[1][1] = 0
-	self.port_speed[1][2] = 0
-	self.port_speed[1][3] = 0
-	self.port_speed[2][1] = 0
-	self.port_speed[2][2] = 0
-	self.port_speed[2][3] = 0
-	self.port_speed[3][1] = 0	
-	self.port_speed[3][2] = 0
-	self.port_speed[3][3] = 0
-	self.port_speed[3][4] = 0
-	self.port_speed[4][1] = 0
-	self.port_speed[4][2] = 0
-	self.port_speed[4][3] = 0
+
+        port_speed[1][1] = 0
+	port_speed[1][2] = 0
+	port_speed[1][3] = 0
+	port_speed[2][1] = 0
+	port_speed[2][2] = 0
+	port_speed[2][3] = 0
+	port_speed[3][1] = 0	
+	port_speed[3][2] = 0
+	port_speed[3][3] = 0
+	port_speed[3][4] = 0
+	port_speed[4][1] = 0
+	port_speed[4][2] = 0
+	port_speed[4][3] = 0
 
         self.port_rx = defaultdict(lambda:defaultdict(lambda:None))
         self.port_rx[1][1] = 0
@@ -178,8 +178,13 @@ class OFPHandler(app_manager.RyuApp):
 
             for p in switches:
                 if adjacency[u][p] != 0:
-                    w = 1
-                    
+                    w =  (port_speed[u][adjacency[u][p]] ) / 10 # Enlace de 1kbps
+                    #print "Adjacency",adjacency[u][p]
+                    #print "U:",u  
+                    #print port_speed[u][adjacency[u][p]]
+                    if w != 0:    
+                        print "Switch: ", p                    
+                        print "Peso: ", w                    
                     if w == 0:
                         w = 1
                     if distance[u] + w < distance[p]:
@@ -237,7 +242,7 @@ class OFPHandler(app_manager.RyuApp):
          datapath=self.datapath_list[int(sw)-1]
          inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS , actions)]
          mod = datapath.ofproto_parser.OFPFlowMod(
-         datapath=datapath, match=match, idle_timeout=0, hard_timeout=0,
+         datapath=datapath, match=match, idle_timeout=10, hard_timeout=10,
          priority=1, instructions=inst)
          datapath.send_msg(mod)
 
@@ -279,13 +284,13 @@ class OFPHandler(app_manager.RyuApp):
         for stat in sorted(body, key=attrgetter('port_no')):
 	    if stat.port_no != 4294967294:
 
-	        self.port_speed[ev.msg.datapath.id][stat.port_no] = stat.rx_bytes - self.port_rx[ev.msg.datapath.id][stat.port_no]
+	        port_speed[ev.msg.datapath.id][stat.port_no] = stat.rx_bytes - self.port_rx[ev.msg.datapath.id][stat.port_no]
 
                 self.logger.info('%016x %8x %8d %8d %8d %8d %8d %8d %8d',
                              ev.msg.datapath.id, stat.port_no,
                              stat.rx_packets, stat.rx_bytes, stat.rx_errors,
                              stat.tx_packets, stat.tx_bytes, stat.tx_errors,
-			     self.port_speed[ev.msg.datapath.id][stat.port_no])
+			     port_speed[ev.msg.datapath.id][stat.port_no])
 
 	      	self.port_rx[ev.msg.datapath.id][stat.port_no] = stat.rx_bytes   
 
