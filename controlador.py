@@ -98,7 +98,7 @@ class OFPHandler(app_manager.RyuApp):
         self.datapath_list = []        
         
         # thread para monitorar trafego
-        #self.monitor_thread = hub.spawn(self._monitor)
+        self.monitor_thread = hub.spawn(self._monitor)
     
 	self.topology_api_app = self
     	
@@ -108,7 +108,9 @@ class OFPHandler(app_manager.RyuApp):
             for dp in self.datapaths.values():
                 self._request_stats(dp)
             hub.sleep(10)
-    
+            #print " "
+            #print "*********************** Nova Leitura  ***************************"
+            #print " "
 # -----------------------------------------------------------------------------------
 # 
 # -----------------------------------------------------------------------------------
@@ -118,16 +120,13 @@ class OFPHandler(app_manager.RyuApp):
         minimum = float('Inf')
 
         node = 0
-        print "Minimo:",minimum 
         for v in Q:
-            print "Distance V",distance[v] 
+            print "Distance[" + str(v) + "]:" + str(distance[v]) 
 
             if distance[v] < minimum:
                 print "Nova Distancia Minima"
                 minimum = distance[v]
                 node = v
-        if node == 0: 
-            hub.sleep(5)
         return node
 
     #Algoritmo de Dijkstra
@@ -150,7 +149,7 @@ class OFPHandler(app_manager.RyuApp):
             Q.remove(u)
 
             for p in switches:
-                if adjacency[u][p] != None:
+                if adjacency[u][p] != 0:
                     w = 1
                     if distance[u] + w < distance[p]:
                         distance[p] = distance[u] + w
@@ -351,6 +350,12 @@ class OFPHandler(app_manager.RyuApp):
         dstIp = arpPacket.src_ip
         srcIp = arpPacket.dst_ip
         dstMac = etherFrame.src
+        print dstIp
+        print srcIp
+        print dstMac
+        print arp_dstIp
+        dpid = datapath.id
+        # Outport depende em que switch estamos e de quem fez a pergunta 
         if arp_dstIp == HOST_IPADDR1:
             srcMac = HOST_MACADDR1
             outPort = HOST_PORT1
@@ -367,6 +372,13 @@ class OFPHandler(app_manager.RyuApp):
             srcMac = HOST_MACADDR6
             outPort = HOST_PORT6
 
+        if dpid != 3 and arp_dstIp == "10.0.0.6":
+            outPort = 3
+        if dpid == 3 and arp_dstIp != "10.0.0.6":
+            outPort = 4
+
+        print srcMac
+        print outPort
         self.send_arp(datapath, 2, srcMac, srcIp, dstMac, dstIp, outPort)
 
     def send_arp(self, datapath, opcode, srcMac, srcIp, dstMac, dstIp, outPort):
@@ -432,6 +444,7 @@ class OFPHandler(app_manager.RyuApp):
 	
         #if dst in self.mac_to_port[dpid]:
 	if eth_pkt.ethertype == ether.ETH_TYPE_ARP:
+            print "Solucionando ARP"
             self.receive_arp(datapath, pkt, eth_pkt, in_port)
         elif dst != 'ff:ff:ff:ff:ff:ff':
             print "Port DST: ",self.host_port[dst][1]
@@ -444,25 +457,26 @@ class OFPHandler(app_manager.RyuApp):
         else:
             print "Sou um BroadCast"
             out_port = ofproto.OFPP_FLOOD
-            
-           
-        actions = [parser.OFPActionOutput(out_port)]
+
+        # Como o arp eh tratado artificialmente, esta parte nao eh necessaria     
+        if dst != 'ff:ff:ff:ff:ff:ff':   
+            actions = [parser.OFPActionOutput(out_port)]
         
-        # instala regra para evitar packet in na proxima vez
-        if out_port != ofproto.OFPP_FLOOD:
-            print "Instalando Regra"
-            match = parser.OFPMatch(in_port=in_port, eth_src=src, eth_dst=dst)
-            #self.add_flow(datapath, 1, match, actions)
+            # instala regra para evitar packet in na proxima vez
+            if out_port != ofproto.OFPP_FLOOD:
+                print "Instalando Regra"
+                match = parser.OFPMatch(in_port=in_port, eth_src=src, eth_dst=dst)
+                #self.add_flow(datapath, 1, match, actions)
 
-        data=None
-        if msg.buffer_id==ofproto.OFP_NO_BUFFER:
-           data=msg.data
+            data=None
+            if msg.buffer_id==ofproto.OFP_NO_BUFFER:
+               data=msg.data
 
-        out = parser.OFPPacketOut(datapath=datapath,
+            out = parser.OFPPacketOut(datapath=datapath,
                                   buffer_id=ofproto.OFP_NO_BUFFER,
                                   in_port=in_port, actions=actions,
                                   data=msg.data)
-        datapath.send_msg(out)
+            datapath.send_msg(out)
         
         # loga os dados do pacote
 	if dst != 'ff:ff:ff:ff:ff:ff':
