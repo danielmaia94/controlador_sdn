@@ -350,9 +350,9 @@ class OFPHandler(app_manager.RyuApp):
         dstIp = arpPacket.src_ip
         srcIp = arpPacket.dst_ip
         dstMac = etherFrame.src
-        print dstIp
-        print srcIp
-        print dstMac
+        #print dstIp
+        #print srcIp
+        #print dstMac
         print arp_dstIp
         dpid = datapath.id
         # Outport depende em que switch estamos e de quem fez a pergunta 
@@ -374,7 +374,7 @@ class OFPHandler(app_manager.RyuApp):
 
         if dpid != 3 and arp_dstIp == "10.0.0.6":
             outPort = 3
-        if dpid == 3 and arp_dstIp != "10.0.0.6":
+        if dpid == 3 and arpPacket.src_ip == "10.0.0.6" :
             outPort = 4
 
         print srcMac
