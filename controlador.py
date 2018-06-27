@@ -116,15 +116,15 @@ class OFPHandler(app_manager.RyuApp):
 # -----------------------------------------------------------------------------------
     #Retorna minima distancia de um nodo
     def minimum_distance(self, distance, Q):
-	print "Entrei Distancia minima"
+	#print "Entrei Distancia minima"
         minimum = float('Inf')
 
         node = 0
         for v in Q:
-            print "Distance[" + str(v) + "]:" + str(distance[v]) 
+            #print "Distance[" + str(v) + "]:" + str(distance[v]) 
 
             if distance[v] < minimum:
-                print "Nova Distancia Minima"
+                #print "Nova Distancia Minima"
                 minimum = distance[v]
                 node = v
         return node
@@ -350,10 +350,10 @@ class OFPHandler(app_manager.RyuApp):
         dstIp = arpPacket.src_ip
         srcIp = arpPacket.dst_ip
         dstMac = etherFrame.src
-        #print dstIp
-        #print srcIp
-        #print dstMac
-        print arp_dstIp
+        print "SRC IP",arpPacket.src_ip
+        print "DST IP",arpPacket.dst_ip
+        print "SRC MAC",etherFrame.src
+        print "DST IP parametro",arp_dstIp
         dpid = datapath.id
         # Outport depende em que switch estamos e de quem fez a pergunta 
         if arp_dstIp == HOST_IPADDR1:
@@ -376,6 +376,8 @@ class OFPHandler(app_manager.RyuApp):
             outPort = 3
         if dpid == 3 and arpPacket.src_ip == "10.0.0.6" :
             outPort = 4
+        if dpid == 3 and arpPacket.src_ip == "10.0.0.3" :
+            outPort = 3
 
         print srcMac
         print outPort
