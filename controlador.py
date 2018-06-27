@@ -54,10 +54,21 @@ class OFPHandler(app_manager.RyuApp):
         super(OFPHandler, self).__init__(*args, **kwargs)
 
         # registra velocidade das portas
-        self.port_speed = {}
-
-        # registra velocidade do fluxo
-        self.flow_speed = {}   
+        self.port_speed = defaultdict(lambda:defaultdict(lambda:None))
+        self.port_speed[1][1] = 0
+	self.port_speed[1][2] = 0
+	self.port_speed[1][3] = 0
+	self.port_speed[2][1] = 0
+	self.port_speed[2][2] = 0
+	self.port_speed[2][3] = 0
+	self.port_speed[3][1] = 0	
+	self.port_speed[3][2] = 0
+	self.port_speed[3][3] = 0
+	self.port_speed[3][4] = 0
+	self.port_speed[3][4] = 0
+	self.port_speed[4][1] = 0
+	self.port_speed[4][2] = 0
+	self.port_speed[4][3] = 0
 
         # the length of speed list of per port and flow.
         self.state_len = 3    
@@ -108,7 +119,7 @@ class OFPHandler(app_manager.RyuApp):
     #Requisita dados de trafego de todos os switches
     def _monitor(self):
         while True:
-            for dp in self.datapaths.values():
+            for dp in self.datapath_list:
                 self._request_stats(dp)
             hub.sleep(10)
             #print " "
@@ -230,129 +241,34 @@ class OFPHandler(app_manager.RyuApp):
     def _request_stats(self, datapath):
         self.logger.debug('send stats request: %016x', datapath.id)
         ofproto = datapath.ofproto
-        parser = datapath.ofproto_parser
-	
-        # obtem dados de flow
-        #req = parser.OFPFlowStatsRequest(datapath)
-        #datapath.send_msg(req)
+        parser = datapath.ofproto_parser	
     
         # obtem dados das portas
-        req = parser.OFPPortDescStatsRequest(datapath, 0, ofproto.OFPP_ANY)
+        req = parser.OFPPortStatsRequest(datapath, 0, ofproto.OFPP_ANY)
         datapath.send_msg(req)
-    
-    #Recebe respostas das requisicoes de flow stats
-    @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
-    def _flow_stats_reply_handler(self, ev):
-        body = ev.msg.body
-        #for p in body:
-            #print p
-        '''
-        self.logger.info('datapath         '
-                         'in-port  eth-dst           '
-                         'out-port packets  bytes')
-        self.logger.info('---------------- '
-                         '-------- ----------------- '
-                         '-------- -------- --------')
-        for stat in sorted([flow for flow in body if flow.priority == 1],
-                           key=lambda flow: (flow.match['in_port'],
-                                             flow.match['eth_dst'])):
-            self.logger.info('%016x %8x %17s %8x %8d %8d',
-                             ev.msg.datapath.id,
-                             stat.match['in_port'], stat.match['eth_dst'],
-                             stat.instructions[0].actions[0].port,
-                             stat.packet_count, stat.byte_count)
-        '''
-    #Recebe respostas das requisicoes de port stats
-    @set_ev_cls(ofp_event.EventOFPPortDescStatsReply, MAIN_DISPATCHER)
-    def port_desc_stats_reply_handler(self, ev):
-        ports = []
-        print "Switch:", ev.msg.datapath.id
-        for p in ev.msg.body:
 
-            print "Port #:", p.port_no
-            print "Curr_speed:", p.curr_speed
-        
-            ports.append('port_no=%d hw_addr=%s name=%s config=0x%08x '
-                         'state=0x%08x curr=0x%08x advertised=0x%08x '
-                         'supported=0x%08x peer=0x%08x curr_speed=%d '
-                         'max_speed=%d' %
-                         (p.port_no, p.hw_addr,
-                          p.name, p.config,
-                          p.state, p.curr, p.advertised,
-                          p.supported, p.peer, p.curr_speed,
-                          p.max_speed))
-
-    '''
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def _port_stats_reply_handler(self, ev):
-        body = ev.msg.body
-        #for p in body:
-            #print p
-        
+        body = ev.msg.body	
+
         self.logger.info('datapath         port     '
                          'rx-pkts  rx-bytes rx-error '
-                         'tx-pkts  tx-bytes tx-error')
+                         'tx-pkts  tx-bytes tx-error '
+			 'flow_speed')
         self.logger.info('---------------- -------- '
                          '-------- -------- -------- '
-                         '-------- -------- --------')
+                         '-------- -------- -------- '
+			 '--------')
         for stat in sorted(body, key=attrgetter('port_no')):
-            self.logger.info('%016x %8x %8d %8d %8d %8d %8d %8d',
+	    if stat.port_no != 4294967294:
+	        self.port_speed[ev.msg.datapath.id][stat.port_no] = stat.rx_bytes - self.port_speed[ev.msg.datapath.id][stat.port_no]
+                self.logger.info('%016x %8x %8d %8d %8d %8d %8d %8d %8d',
                              ev.msg.datapath.id, stat.port_no,
                              stat.rx_packets, stat.rx_bytes, stat.rx_errors,
-                             stat.tx_packets, stat.tx_bytes, stat.tx_errors)
+                             stat.tx_packets, stat.tx_bytes, stat.tx_errors,
+			     self.port_speed[ev.msg.datapath.id][stat.port_no])
 
-        
-    '''
-    # @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
-    # def switch_features_handler(self, ev):
-    #     datapath = ev.msg.datapath
-    #     ofproto = datapath.ofproto
-    #     parser = datapath.ofproto_parser
-     
-    #     match = parser.OFPMatch()
-    #     actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-    #                                       ofproto.OFPCML_NO_BUFFER)]
-    #     self.add_flow(datapath, 0, match, actions)
-    '''
-    @set_ev_cls(ofp_event.EventOFPSwitchFeatures , CONFIG_DISPATCHER)
-    def switch_features_handler(self , ev):
-        datapath = ev.msg.datapath
-        ofproto = datapath.ofproto
-        parser = datapath.ofproto_parser
 
-        match = parser.OFPMatch()
-        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
-
-        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS, actions)]
-
-        mod = datapath.ofproto_parser.OFPFlowMod(
-            datapath=datapath, match=match, cookie=0,
-            command=ofproto.OFPFC_ADD, idle_timeout=0, hard_timeout=0,
-            priority=0, instructions=inst)
-
-        datapath.send_msg(mod)    
-    '''
-    '''
-    #Adiciona uma  entrada na tabela do switch
-    def add_flow(self, p, ev, src_mac, dst_mac):
-       msg = ev.msg
-       datapath = msg.datapath
-       ofproto = datapath.ofproto
-       parser = datapath.ofproto_parser
-
-       for sw, in_port, out_port in p:         
-            match = parser.OFPMatch(in_port=in_port, eth_src=src_mac, eth_dst=dst_mac)
-            actions = [parser.OFPActionOutput(out_port)]
-            datapath = self.datapath_list[int(sw) - 1]
-
-            inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS , actions)]
-
-            mod = datapath.ofproto_parser.OFPFlowMod(
-            datapath = datapath, match = match, idle_timeout = 0, hard_timeout = 0,
-            priority = 1, instructions = inst)
-
-       datapath.send_msg(mod) 
-   	'''
     def add_flow(self, datapath, priority, match, actions):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
