@@ -65,10 +65,24 @@ class OFPHandler(app_manager.RyuApp):
 	self.port_speed[3][2] = 0
 	self.port_speed[3][3] = 0
 	self.port_speed[3][4] = 0
-	self.port_speed[3][4] = 0
 	self.port_speed[4][1] = 0
 	self.port_speed[4][2] = 0
 	self.port_speed[4][3] = 0
+
+        self.port_rx = defaultdict(lambda:defaultdict(lambda:None))
+        self.port_rx[1][1] = 0
+	self.port_rx[1][2] = 0
+	self.port_rx[1][3] = 0
+	self.port_rx[2][1] = 0
+	self.port_rx[2][2] = 0
+	self.port_rx[2][3] = 0
+	self.port_rx[3][1] = 0	
+	self.port_rx[3][2] = 0
+	self.port_rx[3][3] = 0
+	self.port_rx[3][4] = 0
+	self.port_rx[4][1] = 0
+	self.port_rx[4][2] = 0
+	self.port_rx[4][3] = 0
 
         # the length of speed list of per port and flow.
         self.state_len = 3    
@@ -145,7 +159,7 @@ class OFPHandler(app_manager.RyuApp):
 
     #Algoritmo de Dijkstra
     def get_path (self, src, dst, first_port, final_port):  
-        print "get_path is called, src=",src," dst=",dst, " first_port=", first_port, " final_port=", final_port
+        #print "get_path is called, src=",src," dst=",dst, " first_port=", first_port, " final_port=", final_port
 
         distance = {}
         previous = {}
@@ -156,7 +170,7 @@ class OFPHandler(app_manager.RyuApp):
         
         distance[src]=0
         Q = set(switches)
-        print "Q=", Q
+        #print "Q=", Q
 
         while len(Q) > 0:
             u = self.minimum_distance(distance, Q)
@@ -165,6 +179,9 @@ class OFPHandler(app_manager.RyuApp):
             for p in switches:
                 if adjacency[u][p] != 0:
                     w = 1
+                    
+                    if w == 0:
+                        w = 1
                     if distance[u] + w < distance[p]:
                         distance[p] = distance[u] + w
                         previous[p] = u
@@ -188,7 +205,7 @@ class OFPHandler(app_manager.RyuApp):
             path = [src]
         else:
             path=r
-        print "Comeco porta"
+        #print "Comeco porta"
         # adiciona as portas
         r = []
         in_port = first_port
@@ -200,14 +217,14 @@ class OFPHandler(app_manager.RyuApp):
 
         r.append((dst,in_port,final_port))
 
-        print "Retorno get path",r
+        #print "Retorno get path",r
         return r
 # -----------------------------------------------------------------------------------
 # 
 # -----------------------------------------------------------------------------------
     def install_path(self, p, ev, src_mac, dst_mac):
 
-       print "install_path is called"
+       #print "install_path is called"
        #print "p=", p, " src_mac=", src_mac, " dst_mac=", dst_mac
        msg = ev.msg
        datapath = msg.datapath
@@ -261,13 +278,16 @@ class OFPHandler(app_manager.RyuApp):
 			 '--------')
         for stat in sorted(body, key=attrgetter('port_no')):
 	    if stat.port_no != 4294967294:
-	        self.port_speed[ev.msg.datapath.id][stat.port_no] = stat.rx_bytes - self.port_speed[ev.msg.datapath.id][stat.port_no]
+
+	        self.port_speed[ev.msg.datapath.id][stat.port_no] = stat.rx_bytes - self.port_rx[ev.msg.datapath.id][stat.port_no]
+
                 self.logger.info('%016x %8x %8d %8d %8d %8d %8d %8d %8d',
                              ev.msg.datapath.id, stat.port_no,
                              stat.rx_packets, stat.rx_bytes, stat.rx_errors,
                              stat.tx_packets, stat.tx_bytes, stat.tx_errors,
 			     self.port_speed[ev.msg.datapath.id][stat.port_no])
 
+	      	self.port_rx[ev.msg.datapath.id][stat.port_no] = stat.rx_bytes   
 
     def add_flow(self, datapath, priority, match, actions):
         ofproto = datapath.ofproto
@@ -277,8 +297,8 @@ class OFPHandler(app_manager.RyuApp):
         inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
                                              actions)]
         mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
-                                match=match, instructions=inst, idle_timeout=0,
-                                hard_timeout=0)
+                                match=match, instructions=inst, idle_timeout=10,
+                                hard_timeout=10)
         datapath.send_msg(mod)
 
     def receive_arp(self, datapath, packet, etherFrame, inPort):
@@ -355,7 +375,7 @@ class OFPHandler(app_manager.RyuApp):
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
 	print "Entrei Packet In"
-        print switches
+        #print switches
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
@@ -363,7 +383,7 @@ class OFPHandler(app_manager.RyuApp):
         dpid = datapath.id
         
         self.mac_to_port.setdefault(dpid, {})
-        print "Sou SW:",dpid
+        #print "Sou SW:",dpid
         # extrai informacoes do pacote
         pkt = packet.Packet(msg.data)
         eth_pkt = pkt.get_protocol(ethernet.ethernet)
@@ -372,7 +392,7 @@ class OFPHandler(app_manager.RyuApp):
 
         # porta pela qual switch recebeu o pacote
         in_port = msg.match['in_port']
-        print "In_port:" ,in_port
+        #print "In_port:" ,in_port
         # Adiciona a relacao MAC Origem com a porta de saida para 
         # futuros casos no sentido oposto 
   
@@ -381,20 +401,20 @@ class OFPHandler(app_manager.RyuApp):
             #self.mac_to_port[dpid][src] = in_port
         
         #print self.mac_to_port
-        print "MAC SRC:" , src
-        print "MAC DST:" , dst
+        #print "MAC SRC:" , src
+        #print "MAC DST:" , dst
 
         #if dst == 'ff:ff:ff:ff:ff:ff':
             #print "Sou um FF.FF.FF..."
         #if dst in self.mac_to_port[dpid]:
         if eth_pkt.ethertype == ether.ETH_TYPE_ARP:
-            print "Solucionando ARP"
+            #print "Solucionando ARP"
             self.receive_arp(datapath, pkt, eth_pkt, in_port)
         elif dst != 'ff:ff:ff:ff:ff:ff':
-            print "Port DST: ",self.host_port[dst][1]
-            print "Pre Dijsktra"
+            #print "Port DST: ",self.host_port[dst][1]
+            #print "Pre Dijsktra"
             p = self.get_path(self.host_port[src][0], self.host_port[dst][0], self.host_port[src][1], self.host_port[dst][1])
-            print "Post Dijsktra"
+           #print "Post Dijsktra"
             #print p
             self.install_path(p, ev, src, dst) # Instala todas as regras em todos os sw
             out_port = p[0][2]
@@ -408,7 +428,7 @@ class OFPHandler(app_manager.RyuApp):
         
             # instala regra para evitar packet in na proxima vez
             if out_port != ofproto.OFPP_FLOOD:
-                print "Instalando Regra"
+                #print "Instalando Regra"
                 match = parser.OFPMatch(in_port=in_port, eth_src=src, eth_dst=dst)
                 #self.add_flow(datapath, 1, match, actions)
 
@@ -423,9 +443,9 @@ class OFPHandler(app_manager.RyuApp):
             datapath.send_msg(out)
         
         # loga os dados do pacote
-	if dst != 'ff:ff:ff:ff:ff:ff':
-	    self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
-        print "Sai Packet in"     
+	#if dst != 'ff:ff:ff:ff:ff:ff':
+	   #self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
+        #print "Sai Packet in"     
 
 #------------------------------------------------------------------------------
     
