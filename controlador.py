@@ -428,7 +428,7 @@ class OFPHandler(app_manager.RyuApp):
             out_port = ofproto.OFPP_FLOOD
 
         # Como o arp eh tratado artificialmente, esta parte nao eh necessaria     
-        if dst != 'ff:ff:ff:ff:ff:ff':   
+        if eth_pkt.ethertype != ether.ETH_TYPE_ARP:   
             actions = [parser.OFPActionOutput(out_port)]
         
             # instala regra para evitar packet in na proxima vez
