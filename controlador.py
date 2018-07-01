@@ -178,13 +178,13 @@ class OFPHandler(app_manager.RyuApp):
 
             for p in switches:
                 if adjacency[u][p] != 0:
-                    w =  (port_speed[u][adjacency[u][p]] ) / 10 # Enlace de 1kbps
+                    w =  (port_speed[u][adjacency[u][p]] ) / 20 # Enlace de 2kbps
                     #print "Adjacency",adjacency[u][p]
                     #print "U:",u  
                     #print port_speed[u][adjacency[u][p]]
                     if w != 0:    
-                        print "Switch: ", p                    
-                        print "Peso: ", w                    
+                        print "Switch: " + str(p) + " Peso: " + str(w) + ""                    
+                        #print "Peso: ", w                    
                     if w == 0:
                         w = 1
                     if distance[u] + w < distance[p]:
@@ -420,7 +420,7 @@ class OFPHandler(app_manager.RyuApp):
             #print "Pre Dijsktra"
             p = self.get_path(self.host_port[src][0], self.host_port[dst][0], self.host_port[src][1], self.host_port[dst][1])
            #print "Post Dijsktra"
-            #print p
+            print p
             self.install_path(p, ev, src, dst) # Instala todas as regras em todos os sw
             out_port = p[0][2]
         else:
